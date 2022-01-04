@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/markbates/goth"
 	"github.com/thetkpark/cscms-temp-storage/data"
 	"github.com/thetkpark/cscms-temp-storage/handlers"
+	"github.com/thetkpark/cscms-temp-storage/router"
 	"github.com/thetkpark/cscms-temp-storage/service/encrypt"
 	"github.com/thetkpark/cscms-temp-storage/service/jwt"
 	"github.com/thetkpark/cscms-temp-storage/service/storage"
@@ -21,7 +23,6 @@ import (
 	"github.com/caarlos0/env/v6"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/csrf"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/markbates/goth/providers/github"
 	"github.com/markbates/goth/providers/google"
@@ -33,8 +34,6 @@ import (
 // @version 1.0
 // @description This is documentation for CSCMS Storage API
 func main() {
-	//logger := hclog.Default()
-
 	appENVs := ApplicationEnvironmentVariable{}
 	if err := env.Parse(&appENVs, env.Options{RequiredIfNoDef: true}); err != nil {
 		log.Fatalln("Failed to get app ENVs: ", err)
@@ -44,38 +43,27 @@ func main() {
 	if appENVs.Env == "development" {
 		zapLogger, _ = zap.NewDevelopment()
 	}
-	defer zapLogger.Sync()
 	logger := zapLogger.Sugar()
+	defer func(zapLogger *zap.Logger) {
+		err := zapLogger.Sync()
+		if err != nil {
+			logger.Errorw("unable to flush logger", "error", err)
+		}
+	}(zapLogger)
 
 	// Create file in /tmp for livenessProbe
 	livenessProbeFilePath := "/tmp/cscms-storage-healthy"
 	if _, err := os.Create(livenessProbeFilePath); err != nil {
 		logger.Fatalw("Unable to create livenessProbe file", "error", err)
 	}
-	defer os.Remove(livenessProbeFilePath)
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			logger.Errorw("unable to delete liveness probe file", "error", err)
+		}
+	}(livenessProbeFilePath)
 
-	app := fiber.New(fiber.Config{
-		BodyLimit: 150 << 20,
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			// Default to 500
-			code := fiber.StatusInternalServerError
-			message := err.Error()
-
-			// Check if error is fiber.Error type
-			if e, ok := err.(*fiber.Error); ok {
-				// Override status code if fiber.Error type
-				code = e.Code
-				message = e.Message
-			}
-
-			c.Status(code)
-
-			return c.JSON(fiber.Map{
-				"code":    code,
-				"message": message,
-			})
-		},
-	})
+	app := router.NewFiberRouter()
 
 	// Create data store
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", appENVs.DB.Username, appENVs.DB.Password, appENVs.DB.Host, appENVs.DB.Port, appENVs.DB.DatabaseName)
@@ -112,18 +100,26 @@ func main() {
 	// Create handlers
 	fileHandler := handlers.NewFileRoutesHandler(logger, sioEncryptionManager, gormFileDataStore, diskStorageManager, tokenManager, time.Duration(appENVs.FileStoreMaxDuration)*time.Hour*24)
 	imageHandler := handlers.NewImageRouteHandler(logger, gormImageDataStore, imageStorageManager, tokenManager)
-	authHandler := handlers.NewAuthRouteHandler(logger, gormUserDataStore, jwtManager, appENVs.Entrypoint)
+	authHandler := handlers.NewAuthRouteHandler(logger, gormUserDataStore, jwtManager, tokenManager, appENVs.Entrypoint)
 
 	app.Use(limiter.New(limiter.Config{
 		Expiration: time.Second * 5,
 		Max:        10,
 	}))
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "https://storage.cscms.me, http://localhost:5050",
+		AllowOrigins:     "https://storage.cscms.me, http://localhost:3000",
 		AllowMethods:     "GET POST PATCH DELETE",
 		AllowCredentials: true,
 	}))
-	app.Use(csrf.New(csrf.Config{}))
+	app.Use(compress.New(compress.Config{
+		Next: func(c *fiber.Ctx) bool {
+			t := c.Params("token", "")
+			return len(t) == 0
+		},
+		Level: compress.LevelBestSpeed,
+	}))
+	//app.Use(csrf.New(csrf.Config{
+	//}))
 
 	app.Get("/api/ping", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -132,7 +128,7 @@ func main() {
 		})
 	})
 
-	apiPath := app.Group("/api", authHandler.ParseUserFromCookie)
+	apiPath := app.Group("/api", authHandler.ParseUser)
 
 	filePath := apiPath.Group("/file")
 	filePath.Post("/", fileHandler.UploadFile)
@@ -147,14 +143,15 @@ func main() {
 
 	// User Authentication with Oauth
 	goth.UseProviders(
-		github.New(appENVs.OauthGitHubClientSecret, appENVs.OauthGitHubSecretKey, fmt.Sprintf("%s/auth/github/callback", appENVs.Entrypoint)),
-		google.New(appENVs.OAuthGoogleClientSecret, appENVs.OAuthGoogleSecretKey, fmt.Sprintf("%s/auth/google/callback", appENVs.Entrypoint)))
+		github.New(appENVs.OauthGitHubClientSecret, appENVs.OauthGitHubSecretKey, fmt.Sprintf("%s/auth/github/callback", appENVs.Entrypoint), "user:email"),
+		google.New(appENVs.OAuthGoogleClientSecret, appENVs.OAuthGoogleSecretKey, fmt.Sprintf("%s/auth/google/callback", appENVs.Entrypoint), "email", "profile"))
 
 	authPath := app.Group("/auth")
 	authPath.Get("/logout", authHandler.Logout)
-	authPath.Get("/user", authHandler.ParseUserFromCookie, authHandler.AuthenticatedOnly, authHandler.GetUserInfo)
+	authPath.Get("/user", authHandler.ParseUser, authHandler.AuthenticatedOnly, authHandler.GetUserInfo)
 	authPath.Get("/:provider", goth_fiber.BeginAuthHandler)
 	authPath.Get("/:provider/callback", authHandler.OauthProviderCallback)
+	apiPath.Post("/auth/token", authHandler.ParseUser, authHandler.AuthenticatedOnly, authHandler.GenerateAPIToken)
 
 	// Other routes
 	app.Static("/", "./client/build")

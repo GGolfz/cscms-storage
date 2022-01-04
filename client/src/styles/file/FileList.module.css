@@ -6,6 +6,7 @@
 	height: calc(75vh - 6rem);
     display: flex;
     flex-direction: column;
+	margin-top: 2rem;
 }
 .FileListWrapper h3 {
 	font-size: 1.5rem;
@@ -31,7 +32,6 @@
     background: white;
 }
 .FileList thead th {
-	width: 30%;
 	text-align: left;
 	padding: 0.5rem 1rem;
 	font-weight: 500;
@@ -50,17 +50,20 @@
 	padding: 1rem;
 	font-weight: 500;
 }
-.FileList tr td:first-child {
+.FileList tr.Row td:first-child {
 	display: flex;
 	align-items: center;
 }
 .FileList td svg {
 	margin-right: 0.5rem;
 }
-.FileList th:last-child {
-	width: 10%;
+.Empty {
+	text-align: center;
 }
-.EditIcon {
-	cursor: pointer;
-	user-select: none;
+
+@media screen and (max-width: 1024px) {
+	.FileListWrapper {
+		width: calc(100% - 4rem);
+		padding: 2rem;
+	}
 }

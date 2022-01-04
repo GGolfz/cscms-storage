@@ -4,7 +4,8 @@ import Button from '../util/Button'
 import Icon from '../util/Icon'
 import { Slider, TextField } from '@material-ui/core'
 import FileDetail from './FileDetail'
-const UploadContainer = ({ type, handleUpload, setError }) => {
+import styles from '../../styles/upload/UploadContainer.module.css'
+const UploadContainer = ({ type, handleUpload, setError, progress }) => {
 	const [selectedFile, setSelectedFile] = useState(null)
 	const [duration, setDuration] = useState(7)
 	const [slug, setSlug] = useState('')
@@ -13,12 +14,12 @@ const UploadContainer = ({ type, handleUpload, setError }) => {
 	}, [type])
 	const onDrop = (acceptedFiles, rejectedFiles) => {
 		if (acceptedFiles.length === 1) {
-			if(type === 'image') {
-				if(acceptedFiles[0].type.includes('image')) {
+			if (type === 'image') {
+				if (acceptedFiles[0].type.includes('image')) {
 					setSelectedFile(acceptedFiles[0])
 				} else {
 					setError('Please upload an image')
-					return;
+					return
 				}
 			}
 			setSelectedFile(acceptedFiles[0])
@@ -28,46 +29,34 @@ const UploadContainer = ({ type, handleUpload, setError }) => {
 			} else if (rejectedFiles[0].errors[0].code === 'file-too-large') {
 				setError('File too big. The size limit is 100MB')
 			} else setError('File not accepted')
-			return;
+			return
 		}
 	}
-	const onClick = e => {
+	const onClick = async e => {
 		e.preventDefault()
 		if (!selectedFile) {
 			setError('Please select a file')
 			return
 		}
-		handleUpload({
-			selectedFile,
-			slug,
-			duration
-		})
+		try {
+			await handleUpload({
+				selectedFile,
+				slug,
+				duration,
+				clearFile: () => setSelectedFile(null)
+			})
+		} catch (err) {
+			setError(err.response.data.message)
+		}
 	}
 	return (
-		<div
-			style={{
-				height: '75vh',
-				display: 'flex',
-				flexDirection: 'column',
-				margin: '1rem auto'
-			}}
-		>
-			<div
-				style={{
-					background: 'white',
-					width: '65vw',
-					flex: '1',
-					borderRadius: '50px',
-					padding: '3rem',
-					display: 'flex',
-					flexDirection: 'column',
-					alignItems: 'center'
-				}}
-			>
+		<div className={styles.Box}>
+			<div className={styles.BoxUpload}>
 				<DropZone
 					type={type}
 					selectedFilename={selectedFile ? selectedFile.name : ''}
 					onDrop={onDrop}
+					progress={progress}
 				/>
 				{selectedFile ? (
 					<FileDetail
@@ -78,33 +67,20 @@ const UploadContainer = ({ type, handleUpload, setError }) => {
 				) : null}
 				<Button
 					bgColor={'#E9EEFF'}
-					style={{
-						border: 'none',
-						fontSize: '.9rem',
-						width: '170px',
-						height: '50px',
-						marginTop: '2rem'
-					}}
-					onClick={onClick}
+					className={styles.UploadButton}
+					action={onClick}
 				>
 					<Icon name="upload" role="icon" /> Upload
 				</Button>
 			</div>
 			{type === 'file' ? (
-				<div style={{ marginTop: '3rem', display: 'flex', justifyContent: 'center' }}>
-					<div style={{ width: '280px', padding: '0 3rem' }}>
-						<div
-							style={{
-								display: 'flex',
-								justifyContent: 'space-between',
-								marginBottom: '1rem',
-								fontWeight: '500'
-							}}
-						>
+				<div className={styles.CustomBox}>
+					<div className={styles.CustomDuration}>
+						<div className={styles.CustomDurationText}>
 							<div>Storage Duration (Days)</div>
 							<div>{duration}</div>
 						</div>
-						<div style={{ width: '85%' }}>
+						<div className={styles.CustomDurationSlider}>
 							<Slider
 								value={duration}
 								min={1}
@@ -115,13 +91,8 @@ const UploadContainer = ({ type, handleUpload, setError }) => {
 							/>
 						</div>
 					</div>
-					<div style={{ padding: '0 3rem' }}>
-						<div
-							style={{
-								marginBottom: '1rem',
-								fontWeight: '500'
-							}}
-						>
+					<div className={styles.CustomSlug}>
+						<div className={styles.CustomSlugText}>
 							Custom Slug for accessing the file (Optional)
 						</div>
 						<div>

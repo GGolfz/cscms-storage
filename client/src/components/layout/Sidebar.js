@@ -1,6 +1,6 @@
 import Icon from '../util/Icon'
 import { Fragment } from 'react'
-import styles from '../../styles/Sidebar.module.css'
+import styles from '../../styles/layout/Sidebar.module.css'
 const Sidebar = ({ currentRoute = 'file', handleChangeRoute }) => {
 	const routes = ['file', 'image']
 	const activeColor = '#6F6CBB'

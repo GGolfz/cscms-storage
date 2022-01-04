@@ -184,14 +184,9 @@ func (h *FileRoutesHandler) GetFile(c *fiber.Ctx) error {
 
 	if fileInfo.Encrypted {
 		// Decrypt file if encrypted
-		err = h.encryptionManager.Decrypt(file, fileInfo.Nonce, c)
+		file, err = h.encryptionManager.Decrypt(file, fileInfo.Nonce)
 		if err != nil {
 			return NewHTTPError(h.log, fiber.StatusInternalServerError, "unable to decrypt", err)
-		}
-	} else {
-		// Copy file content to response
-		if _, err := io.Copy(c, file); err != nil {
-			return NewHTTPError(h.log, fiber.StatusInternalServerError, "unable to copy file content to response", err)
 		}
 	}
 
@@ -204,7 +199,7 @@ func (h *FileRoutesHandler) GetFile(c *fiber.Ctx) error {
 	c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fileInfo.Filename))
 	c.Set("Content-Type", "application/octet-stream")
 
-	return nil
+	return c.SendStream(file, int(fileInfo.FileSize))
 }
 
 // GetOwnFiles handlers
@@ -244,15 +239,15 @@ func (h *FileRoutesHandler) IsOwnFile(c *fiber.Ctx) error {
 		return NewHTTPError(h.log, fiber.StatusInternalServerError, "unable to parse to user model", fmt.Errorf("user model convertion error"))
 	}
 
-	file, err := h.fileDataStore.FindByUserIDAndFileID(userModel.ID, fileId)
+	file, err := h.fileDataStore.FindByID(fileId)
 	if err != nil {
-		return NewHTTPError(h.log, fiber.StatusInternalServerError, "unable to find file by id and user id", err)
+		return NewHTTPError(h.log, fiber.StatusInternalServerError, "unable to find file by id", err)
 	}
-	if file == nil {
+	if file == nil || file.ExpiredAt.UTC().Before(time.Now().UTC()) {
+		return NewHTTPError(h.log, fiber.StatusNotFound, "File not found", nil)
+	}
+	if file.UserID != userModel.ID {
 		return NewHTTPError(h.log, fiber.StatusForbidden, "Forbidden", nil)
-	}
-	if file.ExpiredAt.UTC().Before(time.Now().UTC()) {
-		return NewHTTPError(h.log, fiber.StatusNotFound, "Not Found", nil)
 	}
 
 	c.SetUserContext(context.WithValue(c.UserContext(), "file", file))
@@ -325,7 +320,7 @@ func (h *FileRoutesHandler) EditToken(c *fiber.Ctx) error {
 	}
 
 	fileModel.Token = newToken
-	err = h.fileDataStore.Save(fileModel)
+	err = h.fileDataStore.UpdateToken(fileModel.ID, newToken)
 	if err != nil {
 		return NewHTTPError(h.log, fiber.StatusInternalServerError, "unable to save edited file model", err)
 	}

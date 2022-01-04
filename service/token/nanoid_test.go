@@ -25,3 +25,10 @@ func TestGenerateImageToken(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, len(token), 20)
 }
+
+func TestGenerateAPIToken(t *testing.T) {
+	nanoIDManager := NewNanoIDTokenManager()
+	token, err := nanoIDManager.GenerateAPIToken()
+	require.NoError(t, err)
+	require.Equal(t, len(token), 30)
+}

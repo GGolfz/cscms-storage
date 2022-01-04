@@ -23,6 +23,35 @@ var doc = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/auth/token": {
+            "post": {
+                "description": "Generate new api token for the user",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Generate new api token",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.User"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/file": {
             "get": {
                 "description": "List all the upload file by the user",
@@ -511,6 +540,9 @@ var doc = `{
         "model.User": {
             "type": "object",
             "properties": {
+                "api_token": {
+                    "type": "string"
+                },
                 "avatar_url": {
                     "type": "string"
                 },

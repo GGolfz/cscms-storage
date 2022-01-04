@@ -146,11 +146,14 @@ func (h *ImageRouteHandler) IsOwnImage(c *fiber.Ctx) error {
 		return NewHTTPError(h.log, fiber.StatusInternalServerError, "unable to parse to user model", fmt.Errorf("user model convertion error"))
 	}
 
-	image, err := h.imageDataStore.FindByImageIDAndUserID(uint(imageIDInt), userModel.ID)
+	image, err := h.imageDataStore.FindByID(uint(imageIDInt))
 	if err != nil {
 		return NewHTTPError(h.log, fiber.StatusInternalServerError, "Unable to query image", err)
 	}
 	if image == nil {
+		return NewHTTPError(h.log, fiber.StatusNotFound, "Image not found", nil)
+	}
+	if image.UserID != userModel.ID {
 		return NewHTTPError(h.log, fiber.StatusForbidden, "Forbidden", nil)
 	}
 

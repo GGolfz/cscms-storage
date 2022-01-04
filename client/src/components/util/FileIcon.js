@@ -1,5 +1,6 @@
 import { Fragment } from 'react'
 import Icon from './Icon'
+import styles from '../../styles/util/FileIcon.module.css'
 
 const FileIcon = ({ ext, type }) => {
 	const getDisplay = () => {
@@ -25,7 +26,14 @@ const FileIcon = ({ ext, type }) => {
 			return <Icon name="other-file" />
 		}
 	}
-	return <Fragment>{getDisplay()}</Fragment>
+	return (
+		<Fragment>
+			<div className={styles.FileIcon}
+			>
+				{getDisplay()}
+			</div>
+		</Fragment>
+	)
 }
 
 export default FileIcon

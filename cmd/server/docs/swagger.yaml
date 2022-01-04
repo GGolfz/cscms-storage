@@ -64,6 +64,8 @@ definitions:
     type: object
   model.User:
     properties:
+      api_token:
+        type: string
       avatar_url:
         type: string
       created_at:
@@ -114,6 +116,25 @@ paths:
       summary: Download the file
       tags:
       - File
+  /api/auth/token:
+    post:
+      description: Generate new api token for the user
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.User'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Generate new api token
+      tags:
+      - Auth
   /api/file:
     get:
       description: List all the upload file by the user

@@ -1,7 +1,7 @@
-import styles from '../../styles/Button.module.css'
-const Button = ({ children, color, bgColor, action, style }) => {
+import styles from '../../styles/util/Button.module.css'
+const Button = ({ children, className, color, bgColor, action, style }) => {
 	return (
-		<button className={styles.Btn} style={{ color: color, background: bgColor, ...style }} onClick={action}>
+		<button className={styles.Btn + ' ' + className} style={{ color: color, background: bgColor, ...style }} onClick={action}>
 			{children}
 		</button>
 	)

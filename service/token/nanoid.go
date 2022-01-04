@@ -21,3 +21,7 @@ func (n *NanoIDTokenManager) GenerateFileID() (string, error) {
 func (n *NanoIDTokenManager) GenerateImageToken() (string, error) {
 	return gonanoid.Generate("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", 20)
 }
+
+func (n *NanoIDTokenManager) GenerateAPIToken() (string, error) {
+	return gonanoid.New(30)
+}

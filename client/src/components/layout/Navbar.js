@@ -1,6 +1,6 @@
 import Icon from '../util/Icon'
 import { Fragment } from 'react'
-import styles from '../../styles/Navbar.module.css'
+import styles from '../../styles/layout/Navbar.module.css'
 import Button from '../util/Button'
 const Navbar = ({ auth, handleAction }) => {
 	return (

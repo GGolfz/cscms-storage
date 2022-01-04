@@ -1,37 +1,41 @@
 import { Fragment, useEffect, useState } from 'react'
-import FileIcon from '../util/FileIcon'
-import { formatFileSize } from '../../utils/formatFileSize'
 import styles from '../../styles/file/FileList.module.css'
 import Icon from '../util/Icon'
-const FileList = () => {
+import axios from 'axios'
+import FileDetail from './FileDetail'
+import ImageDetail from './ImageDetail'
+const FileList = ({ setError }) => {
 	const [sort, setSort] = useState({ name: '', asc: true })
-	const [files, setFiles] = useState([
-		{
-			name: 'b.docx',
-			ext: 'DOCX',
-			type: 'document',
-			size: 100000,
-			lastModified: 'Dec, 13 2021'
-		},
-		{
-			name: 'a.docx',
-			ext: 'DOCX',
-			type: 'document',
-			size: 1500000,
-			lastModified: 'Dec, 13 2021'
-		},
-		{
-			name: 'c.docx',
-			ext: 'DOCX',
-			type: 'document',
-			size: 1200000,
-			lastModified: 'Dec, 13 2021'
-		}
-	])
-	const [displayFile, setDisplayFile] = useState(files)
+	const [files, setFiles] = useState([])
+	const [displayFile, setDisplayFile] = useState([])
+	useEffect(() => {
+		fetchFiles()
+	}, [])
+	const fetchFiles = async () => {
+		const fileRes = await axios.get('https://storage.cscms.me/api/file')
+		const fileData = fileRes.data.map(file => ({
+			...file,
+			type: 'file',
+			url: 'https://storage.cscms.me/' + file.token
+		}))
+		const imageRes = await axios.get('https://storage.cscms.me/api/image')
+		const imageData = imageRes.data.map(image => ({
+			...image,
+			type: 'image',
+			url: 'https://img.cscms.me/' + image.file_path,
+			file_type: 'image',
+			filename: image.original_filename
+		}))
+		setFiles([...fileData, ...imageData])
+	}
+	useEffect(() => {
+		setDisplayFile(files)
+		setSort({ name: '', asc: true })
+	}, [files])
 	useEffect(() => {
 		if (sort.name === '') {
 			setDisplayFile(files)
+			setSort({ name: '', asc: true })
 		} else {
 			let temp = [...files].sort((a, b) => {
 				if (sort.name === 'size') {
@@ -67,60 +71,65 @@ const FileList = () => {
 					<table className={styles.FileList}>
 						<thead>
 							<tr>
-								<th>
-									<div onClick={() => handleSort('name')}>
+								<th style={{ width: '45%' }}>
+									<div onClick={() => handleSort('filename')}>
 										Name{' '}
-										{sort.name === 'name' && sort.asc ? (
+										{sort.name === 'filename' && sort.asc ? (
 											<Icon name="arrow-down" />
 										) : (
 											<Icon name="arrow-up" />
 										)}
 									</div>
 								</th>
-								<th>
-									<div onClick={() => handleSort('size')}>
+								<th style={{ width: '15%' }}>
+									<div onClick={() => handleSort('file_size')}>
 										Size{' '}
-										{sort.name === 'size' && sort.asc ? (
+										{sort.name === 'file_size' && sort.asc ? (
 											<Icon name="arrow-down" />
 										) : (
 											<Icon name="arrow-up" />
 										)}
 									</div>
 								</th>
-								<th>
-									<div onClick={() => handleSort('lastModified')}>
+								<th style={{ width: '25%' }}>
+									<div onClick={() => handleSort('updated_at')}>
 										Last Modified{' '}
-										{sort.name === 'lastModified' && sort.asc ? (
+										{sort.name === 'updated_at' && sort.asc ? (
 											<Icon name="arrow-down" />
 										) : (
 											<Icon name="arrow-up" />
 										)}
 									</div>
 								</th>
-								<th></th>
+								<th style={{ width: '15%' }}></th>
 							</tr>
 						</thead>
 						<tbody>
 							{displayFile.length === 0 ? (
 								<Fragment>
 									<tr>
-										<td colSpan={4}>No files found</td>
+										<td className={styles.Empty} colSpan={4}>
+											No files found
+										</td>
 									</tr>
 								</Fragment>
 							) : (
 								displayFile.map((file, index) => {
 									return (
-										<tr key={index}>
-											<td>
-												<FileIcon ext={file.ext} type={file.type} /> {file.name}
-											</td>
-											<td>{formatFileSize(file.size)}</td>
-											<td>{file.lastModified}</td>
-											<td>
-												<div className={styles.EditIcon}>
-													<Icon name="edit" />
-												</div>
-											</td>
+										<tr key={index} className={styles.Row}>
+											{file.type === 'file' ? (
+												<FileDetail
+													fetchFiles={fetchFiles}
+													setError={setError}
+													file={file}
+												/>
+											) : (
+												<ImageDetail
+													fetchFiles={fetchFiles}
+													setError={setError}
+													file={file}
+												/>
+											)}
 										</tr>
 									)
 								})

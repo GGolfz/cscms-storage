@@ -22,3 +22,13 @@
 .SideBar__item.active {
 	background: #F5EBF9;
 }
+
+@media screen and (max-width:480px) {
+	.SideBar {
+		width: 60px;
+	}
+	.SideBar__item{
+		width: 60px;
+		padding-right: 1rem;
+	}
+}

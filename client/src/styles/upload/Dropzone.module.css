@@ -20,3 +20,19 @@
 .drag .DropZoneTextContainer h2 {
 	color: #FFFFFF;
 }
+@media screen and (max-width:480px) {
+	.Dropzone img{
+		width: 35%;
+	}
+	.Dropzone h2 {
+		font-size: .85rem;
+		text-align: center;
+	}
+	.Dropzone p {
+		font-size: .7rem;
+		text-align: center;
+	}
+	.DropZoneTextContainer {
+		padding: 0 .5rem;
+	}
+}
